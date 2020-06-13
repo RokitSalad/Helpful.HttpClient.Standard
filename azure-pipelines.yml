@@ -2,18 +2,58 @@
 # Start with a minimal pipeline that you can customize to build and deploy your code.
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
+name: 0.0.$(Rev:r)
 
 trigger:
 - master
+- dev
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'windows-latest'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+variables:
+  - group: helpful-libraries-secrets
+  - name: buildConfiguration
+    value: "Release"
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+jobs:
+
+- job: Build
+  displayName: Build and Pack
+  steps:
+  
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet build'
+    inputs:
+      command: 'build'
+      arguments: '-c $(buildConfiguration) /p:Version=$(Build.BuildNumber) /p:AssemblyVersion=$(Build.BuildNumber) /p:AssemblyFileVersion=$(Build.BuildNumber)'
+      projects: '**/Helpful.HttpClient.Standard.csproj'
+      
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet pack'
+    inputs:
+      command: 'pack'
+      arguments: '-c $(buildConfiguration)'
+      nobuild: true
+      packagesToPack: '**/Helpful.HttpClient.Standard.csproj'
+      versioningScheme: 'byBuildNumber'
+      verbosityPack: 'Diagnostic'
+      
+  - publish: '$(Build.ArtifactStagingDirectory)'
+    artifact: Helpful.HttpClient.Standard
+
+- job: PublishLocal
+  displayName: Publish to local feed
+  steps:
+
+  - download: current
+    displayName: Retrieve artifact
+    artifact: Helpful.HttpClient.Standard
+
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet push'
+    inputs:
+      command: 'push'
+      packagesToPush: '$(Pipeline.Workspace)/**/*.nupkg'
+      nuGetFeedType: 'internal'
+      publishVstsFeed: '$(helpful-libraries-feed-allbuilds-uri)'
