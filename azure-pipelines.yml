@@ -44,6 +44,8 @@ jobs:
 
 - job: PublishLocal
   displayName: Publish to local feed
+  dependsOn: Build
+  condition: succeeded()
   steps:
 
   - download: current
