@@ -26,7 +26,7 @@ namespace Helpful.HttpClient.Standard
             {
                 if (context.Request.Headers.TryGetValue(header, out StringValues headerValue))
                 {
-                    LoggingContext.Set(header, headerValue);
+                    LoggingContext.Set(header, headerValue.ToString());
                 }
             }
 
